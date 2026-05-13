@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Media Gallery</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        #gallery {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 50px;
+        }
+        .thumbnail {
+            max-width: 150px;
+            max-height: 150px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        input, button, select {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .full-image {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 10;
+            overflow: auto;
+        }
+        .full-image img {
+            cursor: pointer;
+        }
+        .full-image.zoomed img {
+            max-width: none;
+            max-height: none;
+            width: auto;
+            height: auto;
+        }
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .navigation-buttons button {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        #spinner {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <input type="text" id="subreddit" placeholder="Subreddit">
+        <input type="text" id="search_term" placeholder="Keyword">
+        <input type="number" id="num_images" placeholder="Qty" min="1" max="1000">
+        <select id="sort_order">
+            <option value="hot">Hot</option>
+            <option value="top">Top</option>
+            <option value="new">New</option>
+        </select>
+        <button onclick="fetchMedia()">Show</button>
+    </div>
+    <div id="spinner">Loading...</div>
+    <div id="gallery"></div>
+    <div id="full-image-view" class="full-image">
+        <div class="navigation-buttons">
+            <button onclick="navigate('prev', event)">◀</button>
+            <button onclick="navigate('next', event)">▶</button>
+        </div>
+        <img id="full-image" src="" alt="media" onclick="toggleZoom(event)">
+    </div>
+
+	<a id="post-link" href="#" target="_blank" onclick="event.stopPropagation()"
+	style="position:absolute; bottom:20px; right:20px; background:#1a1a1a; 
+	color:white; padding:8px 14px; border-radius:6px; text-decoration:none; 
+	font-size:18px; z-index:20;">View Post</a>
+
+    <script>
+        let media = [];
+        let currentIndex = 0;
+
+        function fetchMedia() {
+            document.getElementById('spinner').style.display = 'block';
+            const subreddit = document.getElementById('subreddit').value;
+            const searchTerm = document.getElementById('search_term').value;
+            const numImages = document.getElementById('num_images').value || 10;
+            const sortOrder = document.getElementById('sort_order').value;
+            fetch('/fetch_media', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ subreddit: subreddit, search_term: searchTerm, num_images: numImages, sort_order: sortOrder })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('spinner').style.display = 'none';
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                    return;
+                }
+                media = data;
+                displayThumbnails();
+            });
+        }
+
+        function displayThumbnails() {
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+            media.forEach((item, index) => {
+                const img = document.createElement('img');
+                img.src = item.thumbnail; // Load reduced resolution images for thumbnails
+                img.className = 'thumbnail';
+                img.onclick = () => displayFullImage(index);
+                gallery.appendChild(img);
+            });
+        }
+
+        function displayFullImage(index) {
+            currentIndex = index;
+            const fullImageView = document.getElementById('full-image-view');
+            const fullImage = document.getElementById('full-image');
+            fullImage.src = media[currentIndex].full;
+            fullImageView.style.display = 'flex';
+            fullImageView.classList.remove('zoomed');
+            preloadAdjacentImages();
+			document.getElementById('post-link').href = media[currentIndex].post_url;
+        }
+
+        function navigate(direction, event) {
+            event.stopPropagation();
+            if (direction === 'next') {
+                currentIndex = (currentIndex + 1) % media.length;
+            } else if (direction === 'prev') {
+                currentIndex = (currentIndex - 1 + media.length) % media.length;
+            }
+            document.getElementById('full-image').src = media[currentIndex].full;
+			document.getElementById('post-link').href = media[currentIndex].post_url;
+            document.getElementById('full-image-view').classList.remove('zoomed');
+            preloadAdjacentImages();
+        }
+
+        function toggleZoom(event) {
+            event.stopPropagation();
+            const fullImageView = document.getElementById('full-image-view');
+            fullImageView.classList.toggle('zoomed');
+        }
+
+        function preloadAdjacentImages() {
+            const nextIndex = (currentIndex + 1) % media.length;
+            const prevIndex = (currentIndex - 1 + media.length) % media.length;
+            const nextImage = new Image();
+            const prevImage = new Image();
+            nextImage.src = media[nextIndex].full;
+            prevImage.src = media[prevIndex].full;
+        }
+
+        // Hide the full image view when clicking outside the image
+        document.getElementById('full-image-view').addEventListener('click', function(event) {
+            if (event.target.id === 'full-image-view') {
+                event.target.style.display = 'none';
+                event.target.classList.remove('zoomed');
+            }
+        });
+
+        // Add event listener for arrow keys
+        document.addEventListener('keydown', function(event) {
+            if (document.getElementById('full-image-view').style.display === 'flex') {
+                if (event.key === 'ArrowRight') {
+                    navigate('next', event);
+                } else if (event.key === 'ArrowLeft') {
+                    navigate('prev', event);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
