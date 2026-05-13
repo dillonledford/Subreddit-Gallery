@@ -2,7 +2,7 @@
 
 A clean, minimal image gallery for browsing any subreddit with sorting options, keyword filtering, and keyboard navigation. Built with **Python / Flask**.
 
-**Live App:** [Reddit Media Gallery](https://subreddit-gallery.onrender.com)
+**Live App:** [Subreddit Gallery](https://subreddit-gallery.onrender.com)
 
 <picture><img width="1050" height="200" alt="Image" src="https://github.com/user-attachments/assets/eca11229-f3d5-4ee4-ac54-4c7018826596" /></picture>
 
