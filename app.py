@@ -82,7 +82,7 @@ def keep_alive():
     time.sleep(30)  # wait for server to start
     while True:
         try:
-            requests.get('https://faux.onrender.com/')
+            requests.get('https://subreddit-gallery.onrender.com/')
         except:
             pass
         time.sleep(14 * 60)  # ping every 14 minutes
